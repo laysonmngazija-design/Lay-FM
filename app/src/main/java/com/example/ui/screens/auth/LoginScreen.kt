@@ -43,8 +43,8 @@ fun LoginScreen(
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var identifier by remember { mutableStateOf("laysonmngazija@gmail.com") }
-    var pin by remember { mutableStateOf("9552") }
+    var identifier by remember { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
     var rememberDevice by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(false) }
@@ -123,69 +123,13 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Ingia kwenye akaunti yako (Admin au Wakala)",
+                text = "Weka taarifa zako za uthibitisho kuingia kwenye mfumo",
                 style = MaterialTheme.typography.bodySmall,
                 color = LayTextSecondary,
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Demo Quick Fill Chips
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        identifier = "laysonmngazija@gmail.com"
-                        pin = "9552"
-                        errorMessage = null
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("demo_admin_button"),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = LayNavyPrimary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AdminPanelSettings,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Admin (9552)", fontSize = 12.sp)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        identifier = "0717998877"
-                        pin = "1234"
-                        errorMessage = null
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("demo_agent_button"),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = LayGreenDark
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Agent (1234)", fontSize = 12.sp)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             // Error banner
             if (errorMessage != null) {
@@ -225,7 +169,7 @@ fun LoginScreen(
                     errorMessage = null
                 },
                 label = { Text("Barua Pepe au Simu (Email / Phone)") },
-                placeholder = { Text("laysonmngazija@gmail.com au 0717798877") },
+                placeholder = { Text("Mfano: 0717798877") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Email,
@@ -238,6 +182,17 @@ fun LoginScreen(
                     .testTag("login_identifier_input"),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LayTextPrimary,
+                    unfocusedTextColor = LayTextPrimary,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = LayNavyPrimary,
+                    unfocusedBorderColor = LayBorderLight,
+                    focusedLabelColor = LayNavyPrimary,
+                    unfocusedLabelColor = LayTextSecondary,
+                    cursorColor = LayNavyPrimary
+                ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -277,6 +232,17 @@ fun LoginScreen(
                     .testTag("login_pin_input"),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LayTextPrimary,
+                    unfocusedTextColor = LayTextPrimary,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = LayNavyPrimary,
+                    unfocusedBorderColor = LayBorderLight,
+                    focusedLabelColor = LayNavyPrimary,
+                    unfocusedLabelColor = LayTextSecondary,
+                    cursorColor = LayNavyPrimary
+                ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.NumberPassword,
                     imeAction = ImeAction.Done

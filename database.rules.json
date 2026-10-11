@@ -1,35 +1,33 @@
 {
   "rules": {
+    ".read": "auth != null",
     "users": {
       "$uid": {
-        ".read": "auth != null",
         ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')"
       }
     },
     "customers": {
-      ".read": "auth != null",
       "$customerId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || (root.child('users').child(auth.uid).child('role').val() === 'AGENT' && (!data.exists() || data.child('agentId').val() === auth.uid)))"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
       }
     },
     "loans": {
-      ".read": "auth != null",
       "$loanId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || (root.child('users').child(auth.uid).child('role').val() === 'AGENT' && (!data.exists() || data.child('agentId').val() === auth.uid)))"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
       }
     },
     "payments": {
-      ".read": "auth != null",
       "$paymentId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
       }
     },
     "ledgerEntries": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
-      ".write": "auth != null"
+      "$entryId": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+        ".write": "auth != null"
+      }
     },
     "notifications": {
-      ".read": "auth != null",
       ".write": "auth != null"
     },
     "auditLogs": {

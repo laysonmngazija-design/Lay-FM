@@ -43,6 +43,7 @@ fun AdminAgentsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedAgent by remember { mutableStateOf<UserProfile?>(null) }
+    var agentToDelete by remember { mutableStateOf<UserProfile?>(null) }
 
     val filteredAgents = agents.filter {
         it.name.contains(searchQuery, ignoreCase = true) ||
@@ -253,11 +254,63 @@ fun AdminAgentsScreen(
                     ) {
                         Text(if (agent.status == AccountStatus.ACTIVE) "Sitisha Akaunti (Deactivate)" else "Washa Akaunti (Activate)")
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Button(
+                        onClick = {
+                            agentToDelete = agent
+                            selectedAgent = null
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("delete_agent_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusOverdue)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Futa Wakala Huyu (Delete Agent)")
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { selectedAgent = null }) {
                     Text("Funga")
+                }
+            }
+        )
+    }
+
+    // Confirm Delete Agent Dialog
+    agentToDelete?.let { agent ->
+        AlertDialog(
+            onDismissRequest = { agentToDelete = null },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = StatusOverdue)
+            },
+            title = {
+                Text("Thibitisha Kufuta Wakala", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Je, una uhakika unataka kumfuta wakala ${agent.name} (${agent.phone}) kabisa kutoka kwenye mfumo?\n\n" +
+                    "Kitendo hiki hakiwezi kubatilishwa na ataondolewa kwenye database."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            repository.deleteAgent(agent.id)
+                            agentToDelete = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusOverdue)
+                ) {
+                    Text("Ndio, Futa Kabisa")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { agentToDelete = null }) {
+                    Text("Ghairi")
                 }
             }
         )

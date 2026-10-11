@@ -1134,6 +1134,36 @@ class MicrofinanceRepository(private val context: Context) {
         return Result.success(true)
     }
 
+    // Delete Agent (Admin only)
+    suspend fun deleteAgent(agentId: String): Result<Boolean> {
+        val target = _agents.value.find { it.id == agentId }
+            ?: return Result.failure(Exception("Wakala haukupatikana"))
+
+        _agents.value = _agents.value.filter { it.id != agentId }
+
+        addAuditLog(
+            AuditLog(
+                id = UUID.randomUUID().toString(),
+                actorId = "admin",
+                actorName = "Admin",
+                actorRole = "ADMIN",
+                action = "DELETE_AGENT",
+                targetType = "AGENT",
+                targetId = agentId,
+                details = "Kufuta wakala ${target.name} (${target.phone})"
+            )
+        )
+
+        repositoryScope.launch {
+            try {
+                firestore.collection("users").document(agentId).delete().await()
+            } catch (e: Exception) {
+                // offline
+            }
+        }
+        return Result.success(true)
+    }
+
     private fun addNotification(notif: AppNotification) {
         _notifications.value = listOf(notif) + _notifications.value
         repositoryScope.launch {
