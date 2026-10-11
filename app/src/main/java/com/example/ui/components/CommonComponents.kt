@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,18 +58,119 @@ object Formatters {
 }
 
 object SmsHelper {
-    fun launchSmsComposer(context: Context, phoneNumber: String, messageText: String) {
+    fun launchSmsComposer(context: Context, phoneNumber: String, messageText: String = "") {
         try {
             val cleanPhone = phoneNumber.replace("[^0-9+]".toRegex(), "")
             val uri = Uri.parse("smsto:$cleanPhone")
             val intent = Intent(Intent.ACTION_SENDTO, uri).apply {
-                putExtra("sms_body", messageText)
+                if (messageText.isNotBlank()) {
+                    putExtra("sms_body", messageText)
+                }
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
             Toast.makeText(context, "Kifungua ujumbe (SMS) kimefunguliwa", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, "Haikuweza kufungua SMS: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+object CommunicationHelper {
+    fun makePhoneCall(context: Context, phoneNumber: String) {
+        try {
+            val clean = phoneNumber.replace("[^0-9+]".toRegex(), "")
+            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$clean")).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Haikuweza kufungua simu: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun openWhatsApp(context: Context, phoneNumber: String, defaultMessage: String = "") {
+        try {
+            var clean = phoneNumber.replace("[^0-9]".toRegex(), "")
+            if (clean.startsWith("0")) {
+                clean = "255" + clean.substring(1)
+            } else if (!clean.startsWith("255") && clean.length == 9) {
+                clean = "255$clean"
+            }
+            val uriString = if (defaultMessage.isNotBlank()) {
+                "https://api.whatsapp.com/send?phone=$clean&text=${Uri.encode(defaultMessage)}"
+            } else {
+                "https://api.whatsapp.com/send?phone=$clean"
+            }
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "WhatsApp haikupatikana", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+fun QuickContactButtonsRow(
+    phoneNumber: String,
+    contactName: String,
+    modifier: Modifier = Modifier,
+    defaultMessage: String = ""
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Call button
+        IconButton(
+            onClick = { CommunicationHelper.makePhoneCall(context, phoneNumber) },
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(LayNavyPrimary.copy(alpha = 0.1f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Phone,
+                contentDescription = "Piga Simu $contactName",
+                tint = LayNavyPrimary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        // SMS button
+        IconButton(
+            onClick = { SmsHelper.launchSmsComposer(context, phoneNumber, defaultMessage) },
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(LayNavyLight.copy(alpha = 0.1f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.ChatBubble,
+                contentDescription = "Tuma SMS kwa $contactName",
+                tint = LayNavyLight,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        // WhatsApp button
+        IconButton(
+            onClick = { CommunicationHelper.openWhatsApp(context, phoneNumber, defaultMessage) },
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(LayGreenDark.copy(alpha = 0.12f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Send,
+                contentDescription = "WhatsApp $contactName",
+                tint = LayGreenDark,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

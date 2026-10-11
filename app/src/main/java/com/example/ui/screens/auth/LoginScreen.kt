@@ -168,8 +168,13 @@ fun LoginScreen(
                     identifier = it
                     errorMessage = null
                 },
-                label = { Text("Barua Pepe au Simu (Email / Phone)") },
-                placeholder = { Text("Mfano: 0717798877") },
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color(0xFF0F172A),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                label = { Text("Barua Pepe au Simu (Email / Phone)", color = LayNavyPrimary) },
+                placeholder = { Text("Mfano: 0717798877", color = LayTextTertiary) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Email,
@@ -183,14 +188,16 @@ fun LoginScreen(
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LayTextPrimary,
-                    unfocusedTextColor = LayTextPrimary,
+                    focusedTextColor = Color(0xFF0F172A),
+                    unfocusedTextColor = Color(0xFF0F172A),
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
                     focusedBorderColor = LayNavyPrimary,
                     unfocusedBorderColor = LayBorderLight,
                     focusedLabelColor = LayNavyPrimary,
                     unfocusedLabelColor = LayTextSecondary,
+                    focusedPlaceholderColor = LayTextTertiary,
+                    unfocusedPlaceholderColor = LayTextTertiary,
                     cursorColor = LayNavyPrimary
                 ),
                 keyboardOptions = KeyboardOptions(
@@ -208,8 +215,13 @@ fun LoginScreen(
                     if (it.length <= 6) pin = it
                     errorMessage = null
                 },
-                label = { Text("Nambari ya Siri (PIN)") },
-                placeholder = { Text("Ingiza tarakimu 4") },
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color(0xFF0F172A),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                label = { Text("Nambari ya Siri (PIN)", color = LayNavyPrimary) },
+                placeholder = { Text("Ingiza tarakimu 4", color = LayTextTertiary) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Lock,
@@ -233,14 +245,16 @@ fun LoginScreen(
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LayTextPrimary,
-                    unfocusedTextColor = LayTextPrimary,
+                    focusedTextColor = Color(0xFF0F172A),
+                    unfocusedTextColor = Color(0xFF0F172A),
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
                     focusedBorderColor = LayNavyPrimary,
                     unfocusedBorderColor = LayBorderLight,
                     focusedLabelColor = LayNavyPrimary,
                     unfocusedLabelColor = LayTextSecondary,
+                    focusedPlaceholderColor = LayTextTertiary,
+                    unfocusedPlaceholderColor = LayTextTertiary,
                     cursorColor = LayNavyPrimary
                 ),
                 keyboardOptions = KeyboardOptions(
@@ -356,8 +370,7 @@ fun LoginScreen(
             },
             text = {
                 Text(
-                    "Kwa mawakala (Agents): Wasiliana na msimamizi wako mkuu (Admin) kubadilisha au kuweka upya PIN yako.\n\n" +
-                    "Kwa Admin (Layson Mngazija): Nambari chaguomsingi ni 9552. Unaweza kubadilisha kupitia mipangilio ya akaunti baada ya kuingia."
+                    "Tafadhali wasiliana na ofisi kuu ya usimamizi ya Lay Microfinance kwa ajili ya kuthibitishwa na kusaidiwa kuweka upya nambari yako ya siri (PIN)."
                 )
             },
             confirmButton = {

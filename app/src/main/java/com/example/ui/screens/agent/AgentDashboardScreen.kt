@@ -22,6 +22,7 @@ import com.example.data.model.UserProfile
 import com.example.data.repository.MicrofinanceRepository
 import com.example.ui.components.Formatters
 import com.example.ui.components.MetricStatCard
+import com.example.ui.components.QuickContactButtonsRow
 import com.example.ui.components.UserAvatar
 import com.example.ui.screens.admin.ActivityItemCard
 import com.example.ui.theme.*
@@ -39,6 +40,8 @@ fun AgentDashboardScreen(
     val loans by repository.loans.collectAsState()
     val payments by repository.payments.collectAsState()
     val auditLogs by repository.auditLogs.collectAsState()
+    val allAgents by repository.agents.collectAsState()
+    val fellowAgents = allAgents.filter { it.id != agent.id }
 
     // Filtered strictly to this Agent
     val myCustomers = customers.filter { it.agentId == agent.id }
@@ -236,6 +239,108 @@ fun AgentDashboardScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Rekodi Malipo", fontSize = 12.sp)
                         }
+                    }
+                }
+            }
+        }
+
+        // Direct Shortcut to Contact Admin (Layson Mngazija)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = LayGreenContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        UserAvatar(
+                            name = "Layson Mngazija",
+                            size = 44,
+                            backgroundColor = LayNavyPrimary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Layson Mngazija (Admin)",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = LayNavyDark
+                            )
+                            Text(
+                                text = "+255 717 798 877",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LayTextSecondary
+                            )
+                        }
+                    }
+
+                    QuickContactButtonsRow(
+                        phoneNumber = "+255717798877",
+                        contactName = "Admin Layson",
+                        defaultMessage = "Habari Admin Layson, nina swali/taarifa kutoka kwa wakala ${agent.name}."
+                    )
+                }
+            }
+        }
+
+        // Fellow Agents Directory
+        if (fellowAgents.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Mawakala Wenzako (Fellow Agents)",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = LayTextPrimary
+                )
+            }
+
+            items(fellowAgents) { fellow ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            UserAvatar(name = fellow.name, size = 38)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = fellow.name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = LayTextPrimary
+                                )
+                                Text(
+                                    text = fellow.phone,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = LayTextSecondary
+                                )
+                            }
+                        }
+
+                        QuickContactButtonsRow(
+                            phoneNumber = fellow.phone,
+                            contactName = fellow.name,
+                            defaultMessage = "Habari ${fellow.name}, kutoka kwa wakala mwenzako ${agent.name}."
+                        )
                     }
                 }
             }

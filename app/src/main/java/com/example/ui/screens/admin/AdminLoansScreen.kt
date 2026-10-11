@@ -28,6 +28,7 @@ import com.example.data.model.LoanStatus
 import com.example.data.repository.MicrofinanceRepository
 import com.example.ui.components.Formatters
 import com.example.ui.components.LoanStatusBadge
+import com.example.ui.components.QuickContactButtonsRow
 import com.example.ui.components.SmsHelper
 import com.example.ui.components.UserAvatar
 import com.example.ui.theme.*
@@ -219,6 +220,18 @@ fun AdminLoansScreen(
                         Text("${loan.durationDays} siku (deadline 6:00 PM)")
                     }
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Simu ya Mteja: ${loan.customerPhone}", fontWeight = FontWeight.SemiBold)
+                        QuickContactButtonsRow(
+                            phoneNumber = loan.customerPhone,
+                            contactName = loan.customerName,
+                            defaultMessage = "Habari ${loan.customerName}, kuhusu mkopo wako ${loan.loanNumber} kutoka Lay Microfinance."
+                        )
+                    }
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
 
                     // Payment Recipient details (Kept explicitly separate)
@@ -228,7 +241,18 @@ fun AdminLoansScreen(
                         color = LayNavyLight
                     )
                     Text("Jina: ${loan.recipientName.ifBlank { loan.customerName }}")
-                    Text("Simu: ${loan.recipientPhone.ifBlank { loan.customerPhone }} (${loan.recipientNetwork})")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Simu: ${loan.recipientPhone.ifBlank { loan.customerPhone }} (${loan.recipientNetwork})")
+                        QuickContactButtonsRow(
+                            phoneNumber = loan.recipientPhone.ifBlank { loan.customerPhone },
+                            contactName = loan.recipientName.ifBlank { loan.customerName },
+                            defaultMessage = "Habari ${loan.recipientName.ifBlank { loan.customerName }}, kuhusu malipo kutoka Lay Microfinance."
+                        )
+                    }
 
                     if (loan.status == LoanStatus.ACTIVE || loan.status == LoanStatus.OVERDUE || loan.status == LoanStatus.COMPLETED) {
                         Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -490,17 +514,26 @@ fun AdminLoanCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Agent: ${loan.agentName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LayTextSecondary
-                    )
-                    Text(
-                        text = Formatters.formatDate(loan.createdAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LayTextTertiary
+                    Column {
+                        Text(
+                            text = "Agent: ${loan.agentName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LayTextSecondary
+                        )
+                        Text(
+                            text = Formatters.formatDate(loan.createdAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = LayTextTertiary
+                        )
+                    }
+
+                    QuickContactButtonsRow(
+                        phoneNumber = loan.customerPhone,
+                        contactName = loan.customerName,
+                        defaultMessage = "Habari ${loan.customerName}, kutoka Lay Microfinance."
                     )
                 }
             }

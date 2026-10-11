@@ -1,38 +1,44 @@
 {
   "rules": {
-    ".read": "auth != null",
+    ".read": false,
+    ".write": false,
     "users": {
       "$uid": {
-        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')"
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')"
       }
     },
     "customers": {
-      "$customerId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
-      }
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     "loans": {
-      "$loanId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
-      }
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     "payments": {
-      "$paymentId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'AGENT')"
-      }
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     "ledgerEntries": {
+      ".read": "auth != null && (auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
       "$entryId": {
-        ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
-        ".write": "auth != null"
+        ".write": "auth != null && !data.exists()"
       }
     },
     "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "messages": {
+      ".read": "auth != null",
       ".write": "auth != null"
     },
     "auditLogs": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+      "$logId": {
+        ".write": "auth != null && !data.exists()"
+      }
     }
   }
 }

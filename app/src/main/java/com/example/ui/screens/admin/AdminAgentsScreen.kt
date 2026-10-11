@@ -24,6 +24,7 @@ import com.example.data.model.AccountStatus
 import com.example.data.model.UserProfile
 import com.example.data.repository.MicrofinanceRepository
 import com.example.ui.components.Formatters
+import com.example.ui.components.QuickContactButtonsRow
 import com.example.ui.components.StatusBadge
 import com.example.ui.components.UserAvatar
 import com.example.ui.theme.*
@@ -226,6 +227,11 @@ fun AdminAgentsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(text = "Simu: ${agent.phone}", style = MaterialTheme.typography.bodyMedium)
+                    QuickContactButtonsRow(
+                        phoneNumber = agent.phone,
+                        contactName = agent.name,
+                        defaultMessage = "Habari ${agent.name}, kutoka ofisi kuu ya Lay Microfinance."
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -374,17 +380,18 @@ fun AgentCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "$customerCount Wateja (Customers)",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        text = "$customerCount Wateja • ${Formatters.formatTsh(portfolioAmount)}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = LayNavyLight
                     )
-                    Text(
-                        text = Formatters.formatTsh(portfolioAmount),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = LayTextPrimary
+                    QuickContactButtonsRow(
+                        phoneNumber = agent.phone,
+                        contactName = agent.name,
+                        defaultMessage = "Habari ${agent.name}, kutoka Lay Microfinance."
                     )
                 }
             }

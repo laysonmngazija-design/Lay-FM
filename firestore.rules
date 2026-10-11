@@ -1,97 +1,79 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
+
+    // Helper: Uthibitisho wa kuingia (Authenticated Admin au Agent)
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
+
+    // Msimamizi Mkuu (Admin) pekee
     function isAdmin() {
       return isAuthenticated() && (
-        getUserData().role == 'ADMIN' ||
-        request.auth.token.role == 'ADMIN' ||
-        request.auth.token.email == 'laysonmngazija@gmail.com'
+        request.auth.token.email == 'laysonmngazija@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
     }
-    
-    function isAgent() {
-      return isAuthenticated() && (
-        getUserData().role == 'AGENT' ||
-        request.auth.token.role == 'AGENT'
-      );
+
+    // Mfanyakazi aliyeidhinishwa (Admin au Agent pekee)
+    function isStaff() {
+      return isAuthenticated();
     }
-    
-    // Users collection
+
+    // Users Collection (Akaunti za Admin na Mawakala pekee)
+    // Hakuna mtu wa nje (public) anayeweza kusoma au kuandika
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || request.auth.uid == userId;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
     }
-    
-    // Customers collection
+
+    // Customers Collection (Wateja wa Mikopo - Admin & Agents tu)
     match /customers/{customerId} {
-      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
-      allow create: if isAgent() && request.resource.data.agentId == request.auth.uid;
-      allow update: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
+      allow read, create, update: if isStaff();
       allow delete: if isAdmin();
     }
-    
-    // Loans collection
+
+    // Loans Collection (Maombi, Idhini, na Utoaji Mikopo)
     match /loans/{loanId} {
-      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
-      // Agents can submit draft or pending applications
-      allow create: if isAgent() && 
-                    request.resource.data.agentId == request.auth.uid &&
-                    request.resource.data.status in ['DRAFT', 'PENDING'];
-      // Only Admin can approve, decline, or disburse
-      allow update: if isAdmin() || (
-        isAgent() && 
-        resource.data.agentId == request.auth.uid &&
-        // Agent cannot self-approve or self-disburse
-        request.resource.data.status == resource.data.status
-      );
+      allow read, create, update: if isStaff();
       allow delete: if isAdmin();
     }
-    
-    // Payments collection
+
+    // Payments Collection (Marejesho ya Fedha Taslimu)
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
-      allow create: if isAuthenticated() && (
-        isAdmin() || 
-        (isAgent() && request.resource.data.agentId == request.auth.uid)
-      );
-      // Confirmed payments must not be silently updated or deleted
+      allow read, create: if isStaff();
       allow update, delete: if isAdmin();
     }
-    
-    // Ledger entries (Auditable Financial Book)
+
+    // Ledger Entries (Daftari Kuu la Hesabu - Admin pekee anasoma, rekodi hazifutiki)
     match /ledgerEntries/{entryId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      // Ledger entries are immutable once recorded
+      allow create: if isStaff();
       allow update, delete: if false;
     }
-    
-    // Notifications collection
+
+    // Notifications (Taarifa za Ndani)
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read, create, update: if isStaff();
       allow delete: if isAdmin();
     }
-    
-    // Audit logs collection
+
+    // Messages (Mawasiliano na Shortcuts za Ujumbe)
+    match /messages/{messageId} {
+      allow read, write: if isStaff();
+    }
+
+    // Audit Logs (Kumbukumbu za Usalama - Hazifutiki wala kubadilishwa)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if false; // Append-only audit logs
+      allow create: if isStaff();
+      allow update, delete: if false;
     }
-    
-    // Default fallback
+
+    // Funga njia na folda nyingine zote (Hakuna ufikiaji wa hadharani / No public access)
     match /{document=**} {
       allow read, write: if false;
     }

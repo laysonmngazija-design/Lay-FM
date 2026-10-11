@@ -30,6 +30,7 @@ import com.example.data.model.*
 import com.example.data.repository.MicrofinanceRepository
 import com.example.ui.components.Formatters
 import com.example.ui.components.LoanStatusBadge
+import com.example.ui.components.QuickContactButtonsRow
 import com.example.ui.components.SmsHelper
 import com.example.ui.components.UserAvatar
 import com.example.ui.theme.*
@@ -426,8 +427,31 @@ fun AgentCustomersScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Simu: ${cust.phone}", fontWeight = FontWeight.SemiBold)
+                        QuickContactButtonsRow(
+                            phoneNumber = cust.phone,
+                            contactName = cust.fullName,
+                            defaultMessage = "Habari ${cust.fullName}, kutoka Lay Microfinance."
+                        )
+                    }
                     Text("Makazi: ${cust.address}")
-                    Text("Mdhamini: ${cust.guarantorName} (${cust.guarantorPhone})")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Mdhamini: ${cust.guarantorName}", fontWeight = FontWeight.Medium)
+                        QuickContactButtonsRow(
+                            phoneNumber = cust.guarantorPhone,
+                            contactName = cust.guarantorName,
+                            defaultMessage = "Habari ${cust.guarantorName}, kutoka Lay Microfinance."
+                        )
+                    }
                     Text("Mpokeaji Malipo: ${cust.recipientName} (${cust.recipientNetwork}: ${cust.recipientPhone})")
 
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
@@ -775,7 +799,7 @@ fun CustomerCardItem(
 
                 if (activeLoan != null) {
                     Text(
-                        text = "Loan: ${Formatters.formatTsh(activeLoan.principalAmount)} (Salio: ${Formatters.formatTsh(activeLoan.remainingBalance)})",
+                        text = "Loan: ${Formatters.formatTsh(activeLoan.principalAmount)}",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                         color = LayNavyLight
                     )
@@ -784,6 +808,30 @@ fun CustomerCardItem(
                         text = "Hakuna mkopo unaoendelea",
                         style = MaterialTheme.typography.bodySmall,
                         color = LayTextTertiary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (activeLoan != null) {
+                        Text(
+                            text = "Salio: ${Formatters.formatTsh(activeLoan.remainingBalance)}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = LayNavyDark
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    QuickContactButtonsRow(
+                        phoneNumber = customer.phone,
+                        contactName = customer.fullName,
+                        defaultMessage = "Habari ${customer.fullName}, kutoka Lay Microfinance."
                     )
                 }
             }

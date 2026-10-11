@@ -71,6 +71,25 @@ class AuthRepository(private val context: Context) {
         }
 
         try {
+            val cleanPhone = cleanPhoneNumber(trimmedIdentifier)
+            val authEmail = if (trimmedIdentifier.contains("@")) {
+                trimmedIdentifier.lowercase()
+            } else {
+                "${cleanPhone}@lay.app"
+            }
+            val authPassword = "Lay#${trimmedPin}#PinAuth"
+
+            // Authenticate with Firebase Auth first to satisfy security rules (request.auth != null)
+            try {
+                auth.signInWithEmailAndPassword(authEmail, authPassword).await()
+            } catch (e: Exception) {
+                try {
+                    auth.createUserWithEmailAndPassword(authEmail, authPassword).await()
+                } catch (e2: Exception) {
+                    // Ignore if user exists with different password or network glitch
+                }
+            }
+
             // Check in Firestore users collection
             var userProfile: UserProfile? = null
 
@@ -86,7 +105,6 @@ class AuthRepository(private val context: Context) {
                 userProfile = mapDocToUserProfile(doc)
             } else {
                 // Query by phone
-                val cleanPhone = cleanPhoneNumber(trimmedIdentifier)
                 val queryByPhone = firestore.collection("users")
                     .whereEqualTo("phone", cleanPhone)
                     .limit(1)
@@ -99,7 +117,7 @@ class AuthRepository(private val context: Context) {
                 }
             }
 
-            // If not found in Firestore yet (e.g. first launch or bootstrap demo users)
+            // If not found in Firestore yet (e.g. first launch or bootstrap admin)
             if (userProfile == null) {
                 userProfile = checkBootstrapUsers(trimmedIdentifier, trimmedPin)
                 if (userProfile != null) {
@@ -115,7 +133,7 @@ class AuthRepository(private val context: Context) {
             }
 
             if (userProfile == null) {
-                return Result.failure(Exception("Akaunti haikupatikana. Tafadhali hakiki taarifa zako."))
+                return Result.failure(Exception("Akaunti haikupatikana. Tafadhali hakiki taarifa zako za kuingia."))
             }
 
             if (userProfile.status != AccountStatus.ACTIVE) {
@@ -126,6 +144,19 @@ class AuthRepository(private val context: Context) {
             val pinValid = verifyPin(trimmedPin, userProfile.pin)
             if (!pinValid) {
                 return Result.failure(Exception("PIN siyo sahihi. Tafadhali jaribu tena."))
+            }
+
+            // Ensure Firebase Auth session is active
+            if (auth.currentUser == null) {
+                try {
+                    auth.signInWithEmailAndPassword(authEmail, authPassword).await()
+                } catch (e: Exception) {
+                    try {
+                        auth.createUserWithEmailAndPassword(authEmail, authPassword).await()
+                    } catch (e2: Exception) {
+                        // proceed
+                    }
+                }
             }
 
             // Persist session if rememberDevice is requested
@@ -217,7 +248,7 @@ class AuthRepository(private val context: Context) {
         }
 
         // Agent: John Mwita (from showcase mockup)
-        if (lower == "john@gmail.com" || clean == "0717998877" || clean == "0717998877" || clean == "+255717998877" || clean == "+255712345678") {
+        if (lower == "john@gmail.com" || clean == "0717998877" || clean == "+255717998877" || clean == "+255712345678") {
             return UserProfile(
                 id = "agent_john_001",
                 name = "John Mwita",
@@ -226,32 +257,6 @@ class AuthRepository(private val context: Context) {
                 role = UserRole.AGENT,
                 status = AccountStatus.ACTIVE,
                 pin = hashPin("1234") // Default initial agent PIN matching showcase mockup
-            )
-        }
-
-        // Generic admin test shortcut
-        if (lower == "admin@lay.com" || lower == "admin") {
-            return UserProfile(
-                id = "admin_layson_001",
-                name = "Layson Mngazija",
-                email = "laysonmngazija@gmail.com",
-                phone = "+255717798877",
-                role = UserRole.ADMIN,
-                status = AccountStatus.ACTIVE,
-                pin = hashPin("9552")
-            )
-        }
-
-        // Generic agent test shortcut
-        if (lower == "agent@lay.com" || lower == "agent") {
-            return UserProfile(
-                id = "agent_john_001",
-                name = "John Mwita",
-                email = "john@gmail.com",
-                phone = "+255712345678",
-                role = UserRole.AGENT,
-                status = AccountStatus.ACTIVE,
-                pin = hashPin("1234")
             )
         }
 

@@ -720,6 +720,36 @@ class MicrofinanceRepository(private val context: Context) {
                         }
                     }
                 }
+
+            // Listen to Users (Agents) in real time
+            firestore.collection("users")
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && !snapshot.isEmpty) {
+                        val list = snapshot.documents.mapNotNull { doc ->
+                            try {
+                                val roleStr = doc.getString("role") ?: "AGENT"
+                                if (roleStr == "AGENT") {
+                                    val statusStr = doc.getString("status") ?: "ACTIVE"
+                                    UserProfile(
+                                        id = doc.id,
+                                        name = doc.getString("name") ?: "",
+                                        email = doc.getString("email") ?: "",
+                                        phone = doc.getString("phone") ?: "",
+                                        role = UserRole.AGENT,
+                                        status = if (statusStr == "INACTIVE") AccountStatus.INACTIVE else AccountStatus.ACTIVE,
+                                        pin = doc.getString("pin") ?: "1234",
+                                        createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                    )
+                                } else null
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        if (list.isNotEmpty()) {
+                            _agents.value = list
+                        }
+                    }
+                }
         } catch (e: Exception) {
             // Local persistence fallback
         }
