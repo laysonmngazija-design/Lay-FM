@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'ADMIN' ||
+        request.auth.token.role == 'ADMIN' ||
+        request.auth.token.email == 'laysonmngazija@gmail.com'
+      );
+    }
+    
+    function isAgent() {
+      return isAuthenticated() && (
+        getUserData().role == 'AGENT' ||
+        request.auth.token.role == 'AGENT'
+      );
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || request.auth.uid == userId;
+    }
+    
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
+      allow create: if isAgent() && request.resource.data.agentId == request.auth.uid;
+      allow update: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Loans collection
+    match /loans/{loanId} {
+      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
+      // Agents can submit draft or pending applications
+      allow create: if isAgent() && 
+                    request.resource.data.agentId == request.auth.uid &&
+                    request.resource.data.status in ['DRAFT', 'PENDING'];
+      // Only Admin can approve, decline, or disburse
+      allow update: if isAdmin() || (
+        isAgent() && 
+        resource.data.agentId == request.auth.uid &&
+        // Agent cannot self-approve or self-disburse
+        request.resource.data.status == resource.data.status
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isAgent() && resource.data.agentId == request.auth.uid);
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isAgent() && request.resource.data.agentId == request.auth.uid)
+      );
+      // Confirmed payments must not be silently updated or deleted
+      allow update, delete: if isAdmin();
+    }
+    
+    // Ledger entries (Auditable Financial Book)
+    match /ledgerEntries/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      // Ledger entries are immutable once recorded
+      allow update, delete: if false;
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // Audit logs collection
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Append-only audit logs
+    }
+    
+    // Default fallback
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

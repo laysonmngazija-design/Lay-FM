@@ -1,0 +1,6 @@
+{
+  "name": "Lay Microfinance",
+  "description": "Professional microfinance management application for Tanzania with admin and agent portals, customer loan lifecycle, cash collections, and financial ledger.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
