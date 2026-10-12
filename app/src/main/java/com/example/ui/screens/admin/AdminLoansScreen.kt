@@ -22,10 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.Customer
 import com.example.data.model.InterestMethod
 import com.example.data.model.Loan
 import com.example.data.model.LoanStatus
 import com.example.data.repository.MicrofinanceRepository
+import com.example.ui.components.CommunicationHelper
+import com.example.ui.components.CustomerHistoryDialog
 import com.example.ui.components.Formatters
 import com.example.ui.components.LoanStatusBadge
 import com.example.ui.components.QuickContactButtonsRow
@@ -44,10 +47,13 @@ fun AdminLoansScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val loans by repository.loans.collectAsState()
+    val customers by repository.customers.collectAsState()
+    val payments by repository.payments.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
     var selectedLoan by remember { mutableStateOf<Loan?>(null) }
+    var historyCustomer by remember { mutableStateOf<Customer?>(null) }
 
     // Dialog states
     var showApproveConfirm by remember { mutableStateOf(false) }
@@ -232,26 +238,42 @@ fun AdminLoansScreen(
                             defaultMessage = "Habari ${loan.customerName}, kuhusu mkopo wako ${loan.loanNumber} kutoka Lay Microfinance."
                         )
                     }
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
 
-                    // Payment Recipient details (Kept explicitly separate)
-                    Text(
-                        text = "Mpokeaji wa Fedha (Payment Recipient):",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                        color = LayNavyLight
-                    )
-                    Text("Jina: ${loan.recipientName.ifBlank { loan.customerName }}")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Direct Call Button for Customer
+                    Button(
+                        onClick = { CommunicationHelper.makePhoneCall(context, loan.customerPhone) },
+                        modifier = Modifier.fillMaxWidth().testTag("call_loan_customer_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Simu: ${loan.recipientPhone.ifBlank { loan.customerPhone }} (${loan.recipientNetwork})")
-                        QuickContactButtonsRow(
-                            phoneNumber = loan.recipientPhone.ifBlank { loan.customerPhone },
-                            contactName = loan.recipientName.ifBlank { loan.customerName },
-                            defaultMessage = "Habari ${loan.recipientName.ifBlank { loan.customerName }}, kuhusu malipo kutoka Lay Microfinance."
-                        )
+                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Piga Simu Mteja (${loan.customerPhone})", fontWeight = FontWeight.Bold)
+                    }
+
+                    // View Full Customer History Button
+                    OutlinedButton(
+                        onClick = {
+                            val cust = customers.find { it.id == loan.customerId } ?: Customer(
+                                id = loan.customerId,
+                                fullName = loan.customerName,
+                                phone = loan.customerPhone,
+                                agentId = loan.agentId,
+                                agentName = loan.agentName,
+                                recipientName = loan.recipientName,
+                                recipientPhone = loan.recipientPhone,
+                                recipientNetwork = loan.recipientNetwork
+                            )
+                            historyCustomer = cust
+                            selectedLoan = null
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("view_customer_history_btn"),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = LayNavyPrimary),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Tazama Historia Kamili ya Mteja")
                     }
 
                     if (loan.status == LoanStatus.ACTIVE || loan.status == LoanStatus.OVERDUE || loan.status == LoanStatus.COMPLETED) {
@@ -414,7 +436,7 @@ fun AdminLoansScreen(
             title = { Text("Thibitisha Utoaji wa Fedha (Disbursement)") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Mpokeaji: ${selectedLoan!!.recipientName} (${selectedLoan!!.recipientPhone})")
+                    Text("Mteja: ${selectedLoan!!.customerName} (${selectedLoan!!.customerPhone})")
                     Text("Kiasi Kinachotumwa: ${Formatters.formatTsh(selectedLoan!!.principalAmount)}", fontWeight = FontWeight.Bold)
 
                     OutlinedTextField(
@@ -461,6 +483,16 @@ fun AdminLoansScreen(
                     Text("Ghairi")
                 }
             }
+        )
+    }
+
+    // Customer Full History Dialog
+    historyCustomer?.let { cust ->
+        CustomerHistoryDialog(
+            customer = cust,
+            loans = loans,
+            payments = payments,
+            onDismiss = { historyCustomer = null }
         )
     }
 }

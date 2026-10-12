@@ -40,13 +40,11 @@ fun AgentDashboardScreen(
     val loans by repository.loans.collectAsState()
     val payments by repository.payments.collectAsState()
     val auditLogs by repository.auditLogs.collectAsState()
-    val allAgents by repository.agents.collectAsState()
-    val fellowAgents = allAgents.filter { it.id != agent.id }
 
-    // Filtered strictly to this Agent
-    val myCustomers = customers.filter { it.agentId == agent.id }
-    val myLoans = loans.filter { it.agentId == agent.id }
-    val myPayments = payments.filter { it.agentId == agent.id }
+    // Filtered strictly to this Agent with robust matching
+    val myCustomers = customers.filter { repository.isAgentCustomer(it, agent) }
+    val myLoans = loans.filter { repository.isAgentLoan(it, agent) }
+    val myPayments = payments.filter { repository.isAgentPayment(it, agent) }
 
     val pendingCount = myLoans.count { it.status == LoanStatus.PENDING }
     val approvedCount = myLoans.count { it.status == LoanStatus.APPROVED }
@@ -120,7 +118,7 @@ fun AgentDashboardScreen(
                 ) {
                     MetricStatCard(
                         title = "My Customers",
-                        value = "${if (myCustomers.isNotEmpty()) myCustomers.size else 12}",
+                        value = "${myCustomers.size}",
                         icon = Icons.Default.People,
                         iconColor = LayGreenDark,
                         bgColor = Color.White,
@@ -162,7 +160,7 @@ fun AgentDashboardScreen(
                 ) {
                     MetricStatCard(
                         title = "Today's Collections",
-                        value = Formatters.formatTsh(if (todayCollections > 0) todayCollections else 450000L),
+                        value = Formatters.formatTsh(todayCollections),
                         icon = Icons.Default.Payments,
                         iconColor = LayGreenDark,
                         modifier = Modifier.weight(1f),
@@ -170,7 +168,7 @@ fun AgentDashboardScreen(
                     )
                     MetricStatCard(
                         title = "This Month",
-                        value = Formatters.formatTsh(if (thisMonthCollections > 0) thisMonthCollections else 3250000L),
+                        value = Formatters.formatTsh(thisMonthCollections),
                         icon = Icons.Default.CalendarToday,
                         iconColor = LayNavyPrimary,
                         modifier = Modifier.weight(1f),
@@ -184,18 +182,63 @@ fun AgentDashboardScreen(
                 ) {
                     MetricStatCard(
                         title = "Outstanding",
-                        value = Formatters.formatTsh(if (outstandingBalance > 0) outstandingBalance else 1200000L),
+                        value = Formatters.formatTsh(outstandingBalance),
                         icon = Icons.Default.AccountBalanceWallet,
                         iconColor = StatusPending,
                         modifier = Modifier.weight(1f)
                     )
                     MetricStatCard(
                         title = "Overdue",
-                        value = Formatters.formatTsh(if (overdueBalance > 0) overdueBalance else 600000L),
+                        value = Formatters.formatTsh(overdueBalance),
                         icon = Icons.Default.Warning,
                         iconColor = StatusOverdue,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+        // Onboarding card for new agent without customers
+        if (myCustomers.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = LaySurfaceSubtle)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, contentDescription = null, tint = LayNavyPrimary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Hujasajili Wateja Bado",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = LayNavyPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Unaweza kuanza kusajili mteja wako wa kwanza au kutazama wateja wote wa tawi kwenye ukurasa wa wateja.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LayTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onNavigateToCustomers,
+                                colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Sajili Mteja Sasa", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateToCustomers,
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Wateja Wote (${customers.size})", fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -288,60 +331,6 @@ fun AgentDashboardScreen(
                         contactName = "Admin Layson",
                         defaultMessage = "Habari Admin Layson, nina swali/taarifa kutoka kwa wakala ${agent.name}."
                     )
-                }
-            }
-        }
-
-        // Fellow Agents Directory
-        if (fellowAgents.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Mawakala Wenzako (Fellow Agents)",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = LayTextPrimary
-                )
-            }
-
-            items(fellowAgents) { fellow ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            UserAvatar(name = fellow.name, size = 38)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = fellow.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = LayTextPrimary
-                                )
-                                Text(
-                                    text = fellow.phone,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = LayTextSecondary
-                                )
-                            }
-                        }
-
-                        QuickContactButtonsRow(
-                            phoneNumber = fellow.phone,
-                            contactName = fellow.name,
-                            defaultMessage = "Habari ${fellow.name}, kutoka kwa wakala mwenzako ${agent.name}."
-                        )
-                    }
                 }
             }
         }

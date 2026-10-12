@@ -104,6 +104,16 @@ class MicrofinanceRepository(private val context: Context) {
                 status = AccountStatus.ACTIVE,
                 pin = "1234",
                 createdAt = System.currentTimeMillis() - 86400000L * 45
+            ),
+            UserProfile(
+                id = "agent_james_006",
+                name = "James James",
+                email = "james@test.com",
+                phone = "+255 787 798 877",
+                role = UserRole.AGENT,
+                status = AccountStatus.ACTIVE,
+                pin = "1234",
+                createdAt = System.currentTimeMillis() - 86400000L * 20
             )
         )
         _agents.value = baselineAgents
@@ -237,6 +247,38 @@ class MicrofinanceRepository(private val context: Context) {
                 recipientPhone = "+255719333444",
                 recipientNetwork = "M-Pesa",
                 status = "Overdue"
+            ),
+            Customer(
+                id = "cust_009",
+                agentId = "agent_james_006",
+                agentName = "James James",
+                fullName = "Kelvin Mwamba",
+                phone = "+255787123999",
+                address = "Mwenge, Dar es Salaam",
+                guarantorName = "Beatrice Mwamba",
+                guarantorPhone = "+255787000888",
+                requestedAmount = 350000L,
+                loanPurpose = "Biashara ya vifaa vya umeme",
+                recipientName = "Kelvin Mwamba",
+                recipientPhone = "+255787123999",
+                recipientNetwork = "Airtel Money",
+                status = "Active"
+            ),
+            Customer(
+                id = "cust_010",
+                agentId = "agent_james_006",
+                agentName = "James James",
+                fullName = "Grace Emmanuel",
+                phone = "+255784555666",
+                address = "Sinza Kijiweni, Dar es Salaam",
+                guarantorName = "Peter Emmanuel",
+                guarantorPhone = "+255784111222",
+                requestedAmount = 450000L,
+                loanPurpose = "Kuongeza mtaji wa salon",
+                recipientName = "Grace Emmanuel",
+                recipientPhone = "+255784555666",
+                recipientNetwork = "Tigo Pesa",
+                status = "Active"
             )
         )
         _customers.value = baselineCustomers
@@ -425,6 +467,54 @@ class MicrofinanceRepository(private val context: Context) {
                 disbursementTxRef = "MPESA-110294",
                 disbursementMethod = "M-Pesa",
                 disbursedBy = "Admin Layson"
+            ),
+            Loan(
+                id = "loan_009",
+                loanNumber = "LN009",
+                customerId = "cust_009",
+                customerName = "Kelvin Mwamba",
+                customerPhone = "+255787123999",
+                agentId = "agent_james_006",
+                agentName = "James James",
+                principalAmount = 350000L,
+                interestMethod = InterestMethod.PERCENTAGE,
+                interestRate = 20.0,
+                interestAmount = 70000L,
+                totalContractualAmount = 420000L,
+                installmentAmount = 17500L,
+                durationDays = 24,
+                repaymentFrequency = RepaymentFrequency.DAILY,
+                status = LoanStatus.ACTIVE,
+                remainingBalance = 210000L,
+                totalPaid = 210000L,
+                disbursedAt = System.currentTimeMillis() - 86400000L * 10,
+                disbursementTxRef = "AIRTEL-982312",
+                disbursementMethod = "Airtel Money",
+                disbursedBy = "Admin Layson"
+            ),
+            Loan(
+                id = "loan_010",
+                loanNumber = "LN010",
+                customerId = "cust_010",
+                customerName = "Grace Emmanuel",
+                customerPhone = "+255784555666",
+                agentId = "agent_james_006",
+                agentName = "James James",
+                principalAmount = 450000L,
+                interestMethod = InterestMethod.PERCENTAGE,
+                interestRate = 20.0,
+                interestAmount = 90000L,
+                totalContractualAmount = 540000L,
+                installmentAmount = 22500L,
+                durationDays = 24,
+                repaymentFrequency = RepaymentFrequency.DAILY,
+                status = LoanStatus.ACTIVE,
+                remainingBalance = 360000L,
+                totalPaid = 180000L,
+                disbursedAt = System.currentTimeMillis() - 86400000L * 8,
+                disbursementTxRef = "TIGO-552419",
+                disbursementMethod = "Tigo Pesa",
+                disbursedBy = "Admin Layson"
             )
         )
         _loans.value = baselineLoans
@@ -491,6 +581,21 @@ class MicrofinanceRepository(private val context: Context) {
                 balanceBefore = 240000L,
                 balanceAfter = 190000L,
                 timestamp = now - 86400000L * 2
+            ),
+            Payment(
+                id = "pay_005",
+                receiptNumber = "RCP-1005",
+                loanId = "loan_009",
+                customerId = "cust_009",
+                customerName = "Kelvin Mwamba",
+                customerPhone = "+255787123999",
+                agentId = "agent_james_006",
+                agentName = "James James",
+                amount = 35000L,
+                paymentType = PaymentType.PARTIAL_PAYMENT,
+                balanceBefore = 245000L,
+                balanceAfter = 210000L,
+                timestamp = now - 3600000L * 3
             )
         )
         _payments.value = baselinePayments
@@ -750,9 +855,74 @@ class MicrofinanceRepository(private val context: Context) {
                         }
                     }
                 }
+
+            // Listen to Payments in real time
+            firestore.collection("payments")
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && !snapshot.isEmpty) {
+                        val list = snapshot.documents.mapNotNull { doc ->
+                            try {
+                                val pTypeStr = doc.getString("paymentType") ?: "PARTIAL_PAYMENT"
+                                Payment(
+                                    id = doc.id,
+                                    receiptNumber = doc.getString("receiptNumber") ?: "",
+                                    loanId = doc.getString("loanId") ?: "",
+                                    customerId = doc.getString("customerId") ?: "",
+                                    customerName = doc.getString("customerName") ?: "",
+                                    customerPhone = doc.getString("customerPhone") ?: "",
+                                    agentId = doc.getString("agentId") ?: "",
+                                    agentName = doc.getString("agentName") ?: "",
+                                    amount = doc.getLong("amount") ?: 0L,
+                                    paymentType = try { PaymentType.valueOf(pTypeStr) } catch(e: Exception) { PaymentType.PARTIAL_PAYMENT },
+                                    paymentMethod = doc.getString("paymentMethod") ?: "CASH",
+                                    balanceBefore = doc.getLong("balanceBefore") ?: 0L,
+                                    balanceAfter = doc.getLong("balanceAfter") ?: 0L,
+                                    notes = doc.getString("notes") ?: "",
+                                    timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+                                )
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        if (list.isNotEmpty()) {
+                            _payments.value = list
+                        }
+                    }
+                }
         } catch (e: Exception) {
             // Local persistence fallback
         }
+    }
+
+    // Helper checking if an entity belongs to this Agent
+    fun isAgentCustomer(customer: Customer, agent: UserProfile): Boolean {
+        if (customer.agentId.isNotBlank() && customer.agentId == agent.id) return true
+        if (customer.agentName.isNotBlank() && customer.agentName.equals(agent.name, ignoreCase = true)) return true
+        val cleanPhoneDigits = agent.phone.filter { it.isDigit() }
+        if (cleanPhoneDigits.length >= 8 && customer.agentId.contains(cleanPhoneDigits.takeLast(8))) return true
+        if (agent.email.isNotBlank() && customer.agentId.equals(agent.email, ignoreCase = true)) return true
+        if (agent.id.length >= 6 && customer.agentId.contains(agent.id.takeLast(6))) return true
+        return false
+    }
+
+    fun isAgentLoan(loan: Loan, agent: UserProfile): Boolean {
+        if (loan.agentId.isNotBlank() && loan.agentId == agent.id) return true
+        if (loan.agentName.isNotBlank() && loan.agentName.equals(agent.name, ignoreCase = true)) return true
+        val cleanPhoneDigits = agent.phone.filter { it.isDigit() }
+        if (cleanPhoneDigits.length >= 8 && loan.agentId.contains(cleanPhoneDigits.takeLast(8))) return true
+        if (agent.email.isNotBlank() && loan.agentId.equals(agent.email, ignoreCase = true)) return true
+        if (agent.id.length >= 6 && loan.agentId.contains(agent.id.takeLast(6))) return true
+        return false
+    }
+
+    fun isAgentPayment(payment: Payment, agent: UserProfile): Boolean {
+        if (payment.agentId.isNotBlank() && payment.agentId == agent.id) return true
+        if (payment.agentName.isNotBlank() && payment.agentName.equals(agent.name, ignoreCase = true)) return true
+        val cleanPhoneDigits = agent.phone.filter { it.isDigit() }
+        if (cleanPhoneDigits.length >= 8 && payment.agentId.contains(cleanPhoneDigits.takeLast(8))) return true
+        if (agent.email.isNotBlank() && payment.agentId.equals(agent.email, ignoreCase = true)) return true
+        if (agent.id.length >= 6 && payment.agentId.contains(agent.id.takeLast(6))) return true
+        return false
     }
 
     // Agent Registration of Customer + Initial Loan Application
@@ -821,8 +991,52 @@ class MicrofinanceRepository(private val context: Context) {
         // Write to Firestore asynchronously
         repositoryScope.launch {
             try {
-                firestore.collection("customers").document(custId).set(newCustomer).await()
-                firestore.collection("loans").document(loanId).set(newLoan).await()
+                val custMap = mapOf(
+                    "id" to newCustomer.id,
+                    "agentId" to newCustomer.agentId,
+                    "agentName" to newCustomer.agentName,
+                    "fullName" to newCustomer.fullName,
+                    "phone" to newCustomer.phone,
+                    "address" to newCustomer.address,
+                    "photoUrl" to newCustomer.photoUrl,
+                    "guarantorName" to newCustomer.guarantorName,
+                    "guarantorPhone" to newCustomer.guarantorPhone,
+                    "requestedAmount" to newCustomer.requestedAmount,
+                    "loanPurpose" to newCustomer.loanPurpose,
+                    "recipientName" to newCustomer.recipientName,
+                    "recipientPhone" to newCustomer.recipientPhone,
+                    "recipientNetwork" to newCustomer.recipientNetwork,
+                    "notes" to newCustomer.notes,
+                    "status" to newCustomer.status,
+                    "createdAt" to newCustomer.createdAt
+                )
+                val loanMap = mapOf(
+                    "id" to newLoan.id,
+                    "loanNumber" to newLoan.loanNumber,
+                    "customerId" to newLoan.customerId,
+                    "customerName" to newLoan.customerName,
+                    "customerPhone" to newLoan.customerPhone,
+                    "customerPhotoUrl" to newLoan.customerPhotoUrl,
+                    "agentId" to newLoan.agentId,
+                    "agentName" to newLoan.agentName,
+                    "principalAmount" to newLoan.principalAmount,
+                    "interestMethod" to newLoan.interestMethod.name,
+                    "interestRate" to newLoan.interestRate,
+                    "interestAmount" to newLoan.interestAmount,
+                    "totalContractualAmount" to newLoan.totalContractualAmount,
+                    "installmentAmount" to newLoan.installmentAmount,
+                    "durationDays" to newLoan.durationDays,
+                    "repaymentFrequency" to newLoan.repaymentFrequency.name,
+                    "status" to newLoan.status.name,
+                    "recipientName" to newLoan.recipientName,
+                    "recipientPhone" to newLoan.recipientPhone,
+                    "recipientNetwork" to newLoan.recipientNetwork,
+                    "remainingBalance" to newLoan.remainingBalance,
+                    "totalPaid" to newLoan.totalPaid,
+                    "createdAt" to newLoan.createdAt
+                )
+                firestore.collection("customers").document(custId).set(custMap).await()
+                firestore.collection("loans").document(loanId).set(loanMap).await()
             } catch (e: Exception) {
                 // Stays in memory/offline cache
             }
@@ -972,7 +1186,7 @@ class MicrofinanceRepository(private val context: Context) {
             AppNotification(
                 id = UUID.randomUUID().toString(),
                 title = "Mkopo Umetumwa (Disbursed)",
-                message = "Fedha za mkopo ${target.loanNumber} (TSh ${formatNumber(amount)}) zimetumwa kwa ${target.recipientName}.",
+                message = "Fedha za mkopo ${target.loanNumber} (TSh ${formatNumber(amount)}) zimetumwa kwa ${target.customerName}.",
                 type = "LOAN_DISBURSED",
                 recipientRole = "AGENT",
                 recipientId = target.agentId
@@ -1089,9 +1303,47 @@ class MicrofinanceRepository(private val context: Context) {
 
         repositoryScope.launch {
             try {
-                firestore.collection("loans").document(loanId).set(updatedLoan).await()
-                firestore.collection("payments").document(newPayment.id).set(newPayment).await()
-                firestore.collection("ledgerEntries").document(ledger.id).set(ledger).await()
+                val loanMap = mapOf(
+                    "remainingBalance" to updatedLoan.remainingBalance,
+                    "totalPaid" to updatedLoan.totalPaid,
+                    "status" to updatedLoan.status.name,
+                    "updatedAt" to updatedLoan.updatedAt
+                )
+                val payMap = mapOf(
+                    "id" to newPayment.id,
+                    "receiptNumber" to newPayment.receiptNumber,
+                    "loanId" to newPayment.loanId,
+                    "customerId" to newPayment.customerId,
+                    "customerName" to newPayment.customerName,
+                    "customerPhone" to newPayment.customerPhone,
+                    "agentId" to newPayment.agentId,
+                    "agentName" to newPayment.agentName,
+                    "amount" to newPayment.amount,
+                    "paymentType" to newPayment.paymentType.name,
+                    "paymentMethod" to newPayment.paymentMethod,
+                    "balanceBefore" to newPayment.balanceBefore,
+                    "balanceAfter" to newPayment.balanceAfter,
+                    "notes" to newPayment.notes,
+                    "timestamp" to newPayment.timestamp
+                )
+                val ledMap = mapOf(
+                    "id" to ledger.id,
+                    "transactionId" to ledger.transactionId,
+                    "transactionType" to ledger.transactionType.name,
+                    "debit" to ledger.debit,
+                    "credit" to ledger.credit,
+                    "referenceNumber" to ledger.referenceNumber,
+                    "description" to ledger.description,
+                    "customerId" to ledger.customerId,
+                    "customerName" to ledger.customerName,
+                    "loanId" to ledger.loanId,
+                    "agentId" to ledger.agentId,
+                    "createdBy" to ledger.createdBy,
+                    "timestamp" to ledger.timestamp
+                )
+                firestore.collection("loans").document(loanId).update(loanMap).await()
+                firestore.collection("payments").document(newPayment.id).set(payMap).await()
+                firestore.collection("ledgerEntries").document(ledger.id).set(ledMap).await()
             } catch (e: Exception) {
                 // offline
             }
@@ -1107,14 +1359,15 @@ class MicrofinanceRepository(private val context: Context) {
         email: String,
         pin: String
     ): Result<UserProfile> {
+        val cleanPin = pin.trim().ifBlank { "1234" }
         val newAgent = UserProfile(
-            id = "agent_" + UUID.randomUUID().toString().take(6),
-            name = name,
-            email = email.lowercase(),
-            phone = phone,
+            id = "agent_" + UUID.randomUUID().toString().take(8),
+            name = name.trim(),
+            email = email.trim().lowercase(),
+            phone = phone.trim(),
             role = UserRole.AGENT,
             status = AccountStatus.ACTIVE,
-            pin = pin,
+            pin = cleanPin,
             createdAt = System.currentTimeMillis()
         )
 
@@ -1133,12 +1386,21 @@ class MicrofinanceRepository(private val context: Context) {
             )
         )
 
-        repositoryScope.launch {
-            try {
-                firestore.collection("users").document(newAgent.id).set(newAgent).await()
-            } catch (e: Exception) {
-                // offline
-            }
+        val agentData = mapOf(
+            "id" to newAgent.id,
+            "name" to newAgent.name,
+            "email" to newAgent.email,
+            "phone" to newAgent.phone,
+            "role" to "AGENT",
+            "status" to "ACTIVE",
+            "pin" to newAgent.pin,
+            "createdAt" to newAgent.createdAt
+        )
+
+        try {
+            firestore.collection("users").document(newAgent.id).set(agentData).await()
+        } catch (e: Exception) {
+            // Keep local state active if offline
         }
 
         return Result.success(newAgent)
@@ -1157,6 +1419,41 @@ class MicrofinanceRepository(private val context: Context) {
         repositoryScope.launch {
             try {
                 firestore.collection("users").document(agentId).update("status", newStatus.name).await()
+            } catch (e: Exception) {
+                // offline
+            }
+        }
+        return Result.success(true)
+    }
+
+    // Reset Agent PIN / Password (Admin only)
+    suspend fun resetAgentPin(agentId: String, newPin: String): Result<Boolean> {
+        val target = _agents.value.find { it.id == agentId }
+            ?: return Result.failure(Exception("Wakala haukupatikana"))
+
+        if (newPin.length < 4) {
+            return Result.failure(Exception("PIN lazima iwe na angalau tarakimu 4."))
+        }
+
+        val updated = target.copy(pin = newPin)
+        _agents.value = _agents.value.map { if (it.id == agentId) updated else it }
+
+        addAuditLog(
+            AuditLog(
+                id = UUID.randomUUID().toString(),
+                actorId = "admin",
+                actorName = "Admin Layson",
+                actorRole = "ADMIN",
+                action = "RESET_AGENT_PIN",
+                targetType = "AGENT",
+                targetId = agentId,
+                details = "Kuweka upya nambari ya siri (PIN) ya wakala ${target.name} (${target.phone})"
+            )
+        )
+
+        repositoryScope.launch {
+            try {
+                firestore.collection("users").document(agentId).update("pin", newPin).await()
             } catch (e: Exception) {
                 // offline
             }
@@ -1192,6 +1489,50 @@ class MicrofinanceRepository(private val context: Context) {
             }
         }
         return Result.success(true)
+    }
+
+    // Tuma Taarifa / Notification kwa Mteja Aliyepitiliza Muda (Overdue Reminder)
+    suspend fun sendOverdueNotification(
+        loan: Loan,
+        senderAgentName: String
+    ): Result<AppNotification> {
+        val notif = AppNotification(
+            id = UUID.randomUUID().toString(),
+            title = "⚠️ Mteja Amepitiliza Muda wa Marejesho",
+            message = "Mteja ${loan.customerName} (${loan.customerPhone}) amepitiliza muda wa mkopo ${loan.loanNumber}. Salio lililobaki: TSh ${formatNumber(loan.remainingBalance)}.",
+            type = "OVERDUE",
+            recipientRole = "ALL",
+            recipientId = loan.agentId,
+            relatedEntityId = loan.id
+        )
+        addNotification(notif)
+
+        addAuditLog(
+            AuditLog(
+                id = UUID.randomUUID().toString(),
+                actorId = loan.agentId,
+                actorName = senderAgentName,
+                actorRole = "AGENT",
+                action = "SEND_OVERDUE_ALERT",
+                targetType = "LOAN",
+                targetId = loan.id,
+                details = "Taarifa ya kupitiliza muda wa malipo imetumwa kwa mteja ${loan.customerName} (${loan.customerPhone})"
+            )
+        )
+
+        if (loan.status != LoanStatus.OVERDUE) {
+            val updated = loan.copy(status = LoanStatus.OVERDUE, updatedAt = System.currentTimeMillis())
+            _loans.value = _loans.value.map { if (it.id == loan.id) updated else it }
+            repositoryScope.launch {
+                try {
+                    firestore.collection("loans").document(loan.id).update("status", LoanStatus.OVERDUE.name).await()
+                } catch (e: Exception) {
+                    // offline
+                }
+            }
+        }
+
+        return Result.success(notif)
     }
 
     private fun addNotification(notif: AppNotification) {

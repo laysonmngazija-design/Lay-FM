@@ -129,7 +129,64 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Quick Account Selector Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        identifier = "0717798877"
+                        pin = "9552"
+                        errorMessage = null
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_login_admin"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (identifier.contains("717798877")) LayNavyPrimary.copy(alpha = 0.12f) else Color.White
+                    )
+                ) {
+                    Text("Admin Layson", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LayNavyPrimary)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        identifier = "0787798877"
+                        pin = "1234"
+                        errorMessage = null
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_login_agent_james"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (identifier.contains("787798877") || identifier == "james@test.com") LayGreenDark.copy(alpha = 0.12f) else Color.White
+                    )
+                ) {
+                    Text("Agent James", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LayGreenDark)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        identifier = "0713111222"
+                        pin = "1234"
+                        errorMessage = null
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_login_agent_john"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (identifier.contains("713111222")) LayNavyLight.copy(alpha = 0.12f) else Color.White
+                    )
+                ) {
+                    Text("Agent John", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LayNavyLight)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Error banner
             if (errorMessage != null) {

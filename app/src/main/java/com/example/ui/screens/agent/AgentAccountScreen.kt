@@ -34,6 +34,7 @@ fun AgentAccountScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     var showChangePinDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -120,7 +121,7 @@ fun AgentAccountScreen(
                     AccountMenuItem(
                         icon = Icons.Default.Person,
                         title = "Wasifu Wangu (Profile Settings)",
-                        onClick = { }
+                        onClick = { showProfileDialog = true }
                     )
                     Divider(color = LayBorderLight)
                     AccountMenuItem(
@@ -224,6 +225,28 @@ fun AgentAccountScreen(
             confirmButton = {
                 TextButton(onClick = { showAboutDialog = false }) {
                     Text("Sawa")
+                }
+            }
+        )
+    }
+
+    if (showProfileDialog) {
+        AlertDialog(
+            onDismissRequest = { showProfileDialog = false },
+            title = { Text("Wasifu wa Wakala", fontWeight = FontWeight.Bold, color = LayNavyPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Jina: ${agent.name}", fontWeight = FontWeight.SemiBold)
+                    Text("Kitambulisho cha Wakala: ${agent.id}", color = LayNavyDark)
+                    Text("Namba ya Simu: ${agent.phone}")
+                    Text("Barua Pepe: ${agent.email}")
+                    Text("Wajibu (Role): ${agent.role.name}")
+                    Text("Hali ya Akaunti: ${agent.status.name}", color = LayGreenDark, fontWeight = FontWeight.Bold)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProfileDialog = false }) {
+                    Text("Funga")
                 }
             }
         )

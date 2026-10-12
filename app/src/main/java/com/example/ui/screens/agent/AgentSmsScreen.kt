@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.Customer
 import com.example.data.model.UserProfile
 import com.example.data.repository.MicrofinanceRepository
+import com.example.ui.components.CommunicationHelper
 import com.example.ui.components.Formatters
 import com.example.ui.components.SmsHelper
 import com.example.ui.theme.*
@@ -46,7 +47,8 @@ fun AgentSmsScreen(
 ) {
     val context = LocalContext.current
     val customers by repository.customers.collectAsState()
-    val myCustomers = customers.filter { it.agentId == agent.id }
+    val myCustomers = customers.filter { repository.isAgentCustomer(it, agent) }
+    var pickerSearchQuery by remember { mutableStateOf("") }
 
     var selectedTab by remember { mutableStateOf("Templates") }
     var selectedTemplate by remember { mutableStateOf<SmsTemplateItem?>(null) }
@@ -291,59 +293,106 @@ fun AgentSmsScreen(
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            if (recipientPhone.isNotBlank() && messageBody.isNotBlank()) {
-                                SmsHelper.launchSmsComposer(context, recipientPhone, messageBody)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("launch_sms_composer_button"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
-                        enabled = recipientPhone.isNotBlank() && messageBody.isNotBlank()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Fungua SMS ya Simu (Send via Android)",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White)
-                        )
+                        Button(
+                            onClick = {
+                                if (recipientPhone.isNotBlank() && messageBody.isNotBlank()) {
+                                    SmsHelper.launchSmsComposer(context, recipientPhone, messageBody)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("launch_sms_composer_button"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                            enabled = recipientPhone.isNotBlank() && messageBody.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Tuma SMS",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = Color.White)
+                            )
+                        }
+
+                        if (recipientPhone.isNotBlank()) {
+                            IconButton(
+                                onClick = { CommunicationHelper.makePhoneCall(context, recipientPhone) },
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(LayNavyPrimary)
+                            ) {
+                                Icon(Icons.Default.Phone, contentDescription = "Piga Simu", tint = Color.White)
+                            }
+
+                            IconButton(
+                                onClick = { CommunicationHelper.openWhatsApp(context, recipientPhone, messageBody) },
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF25D366))
+                            ) {
+                                Icon(Icons.Default.Chat, contentDescription = "WhatsApp", tint = Color.White)
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // Customer Picker Dialog
+    // Customer Picker Dialog (Wateja wa wakala huyu pekee)
     if (showCustomerPicker) {
+        val filteredPickerList = myCustomers.filter {
+            it.fullName.contains(pickerSearchQuery, ignoreCase = true) ||
+            it.phone.contains(pickerSearchQuery, ignoreCase = true)
+        }
+
         AlertDialog(
             onDismissRequest = { showCustomerPicker = false },
-            title = { Text("Chagua Mteja Wako") },
+            title = { Text("Chagua Mteja Wako (${myCustomers.size})", fontWeight = FontWeight.Bold, color = LayNavyPrimary) },
             text = {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(myCustomers) { cust ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    recipientName = cust.fullName
-                                    recipientPhone = cust.phone
-                                    if (messageBody.contains("{name}")) {
-                                        messageBody = messageBody.replace("{name}", cust.fullName)
-                                    }
-                                    showCustomerPicker = false
-                                },
-                            colors = CardDefaults.cardColors(containerColor = LaySurfaceSubtle)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = pickerSearchQuery,
+                        onValueChange = { pickerSearchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Tafuta jina au simu...") },
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LayTextSecondary) }
+                    )
+
+                    if (filteredPickerList.isEmpty()) {
+                        Text("Hakuna mteja aliyepatikana.", modifier = Modifier.padding(vertical = 12.dp), color = LayTextSecondary)
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(cust.fullName, fontWeight = FontWeight.Bold)
-                                Text(cust.phone, fontSize = 12.sp, color = LayTextSecondary)
+                            items(filteredPickerList) { cust ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            recipientName = cust.fullName
+                                            recipientPhone = cust.phone
+                                            if (messageBody.contains("{name}")) {
+                                                messageBody = messageBody.replace("{name}", cust.fullName)
+                                            }
+                                            showCustomerPicker = false
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = LaySurfaceSubtle)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(cust.fullName, fontWeight = FontWeight.Bold)
+                                        Text(cust.phone, fontSize = 12.sp, color = LayTextSecondary)
+                                    }
+                                }
                             }
                         }
                     }

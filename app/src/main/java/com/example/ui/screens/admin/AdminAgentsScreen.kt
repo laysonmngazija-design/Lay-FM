@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -23,8 +24,10 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.AccountStatus
 import com.example.data.model.UserProfile
 import com.example.data.repository.MicrofinanceRepository
+import com.example.ui.components.CommunicationHelper
 import com.example.ui.components.Formatters
 import com.example.ui.components.QuickContactButtonsRow
+import com.example.ui.components.SmsHelper
 import com.example.ui.components.StatusBadge
 import com.example.ui.components.UserAvatar
 import com.example.ui.theme.*
@@ -45,6 +48,7 @@ fun AdminAgentsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedAgent by remember { mutableStateOf<UserProfile?>(null) }
     var agentToDelete by remember { mutableStateOf<UserProfile?>(null) }
+    var agentToResetPin by remember { mutableStateOf<UserProfile?>(null) }
 
     val filteredAgents = agents.filter {
         it.name.contains(searchQuery, ignoreCase = true) ||
@@ -186,9 +190,13 @@ fun AdminAgentsScreen(
                         }
                         isSaving = true
                         coroutineScope.launch {
-                            repository.addAgent(name, phone, email, pin)
+                            val res = repository.addAgent(name, phone, email, pin)
                             isSaving = false
-                            showAddDialog = false
+                            if (res.isSuccess) {
+                                showAddDialog = false
+                            } else {
+                                errorMsg = res.exceptionOrNull()?.message ?: "Hitilafu katika kusajili wakala"
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LayNavyPrimary),
@@ -225,8 +233,22 @@ fun AdminAgentsScreen(
                 }
             },
             text = {
+                val context = LocalContext.current
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(text = "Simu: ${agent.phone}", style = MaterialTheme.typography.bodyMedium)
+
+                    // Prominent Direct Call Button
+                    Button(
+                        onClick = { CommunicationHelper.makePhoneCall(context, agent.phone) },
+                        modifier = Modifier.fillMaxWidth().testTag("call_agent_direct_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Piga Simu Wakala (${agent.phone})", fontWeight = FontWeight.Bold)
+                    }
+
                     QuickContactButtonsRow(
                         phoneNumber = agent.phone,
                         contactName = agent.name,
@@ -244,7 +266,22 @@ fun AdminAgentsScreen(
                     Text(text = "Jumla ya Mikopo: ${Formatters.formatTsh(totalDisbursed)}")
                     Text(text = "Deni Lililobaki: ${Formatters.formatTsh(outstanding)}")
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Reset Agent PIN / Password Button
+                    Button(
+                        onClick = {
+                            agentToResetPin = agent
+                            selectedAgent = null
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("reset_agent_pin_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = LayNavyLight),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.LockReset, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Weka Upya PIN / Nenosiri (Reset Password)")
+                    }
 
                     OutlinedButton(
                         onClick = {
@@ -256,12 +293,11 @@ fun AdminAgentsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = if (agent.status == AccountStatus.ACTIVE) StatusOverdue else LayGreenDark
-                        )
+                        ),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(if (agent.status == AccountStatus.ACTIVE) "Sitisha Akaunti (Deactivate)" else "Washa Akaunti (Activate)")
                     }
-
-                    Spacer(modifier = Modifier.height(4.dp))
 
                     Button(
                         onClick = {
@@ -269,7 +305,8 @@ fun AdminAgentsScreen(
                             selectedAgent = null
                         },
                         modifier = Modifier.fillMaxWidth().testTag("delete_agent_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = StatusOverdue)
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusOverdue),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -317,6 +354,174 @@ fun AdminAgentsScreen(
             dismissButton = {
                 TextButton(onClick = { agentToDelete = null }) {
                     Text("Ghairi")
+                }
+            }
+        )
+    }
+
+    // Reset Agent PIN Dialog
+    agentToResetPin?.let { agent ->
+        var newPin by remember { mutableStateOf("1234") }
+        var isSavingPin by remember { mutableStateOf(false) }
+        var resetSuccess by remember { mutableStateOf(false) }
+        var resetError by remember { mutableStateOf<String?>(null) }
+        val context = LocalContext.current
+
+        AlertDialog(
+            onDismissRequest = { if (!isSavingPin) agentToResetPin = null },
+            icon = {
+                Icon(Icons.Default.LockReset, contentDescription = null, tint = LayNavyPrimary)
+            },
+            title = {
+                Text("Weka Upya PIN ya Wakala", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Wakala: ${agent.name}\nSimu: ${agent.phone}",
+                        fontSize = 13.sp,
+                        color = LayTextSecondary
+                    )
+
+                    if (!resetSuccess) {
+                        if (resetError != null) {
+                            Text(text = resetError ?: "", color = StatusOverdue, fontSize = 12.sp)
+                        }
+
+                        OutlinedTextField(
+                            value = newPin,
+                            onValueChange = { if (it.length <= 6) newPin = it },
+                            label = { Text("Nambari Mpya ya Siri (PIN)") },
+                            modifier = Modifier.fillMaxWidth().testTag("reset_pin_input"),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { newPin = "1234" },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(4.dp)
+                            ) {
+                                Text("Chaguomsingi (1234)", fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val randomPin = (1000..9999).random().toString()
+                                    newPin = randomPin
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(4.dp)
+                            ) {
+                                Text("Zalisha Nyingine", fontSize = 11.sp)
+                            }
+                        }
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = LayGreenContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "PIN Imesasishwa Kikamilifu!",
+                                    fontWeight = FontWeight.Bold,
+                                    color = LayGreenOnContainer
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "PIN mpya ya ${agent.name} ni: $newPin",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = LayNavyDark
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Tuma taarifa ya PIN mpya kwa wakala:", fontSize = 12.sp, color = LayTextSecondary)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    SmsHelper.launchSmsComposer(
+                                        context,
+                                        agent.phone,
+                                        "Habari ${agent.name}, Nambari yako mpya ya siri (PIN) ya kuingia kwenye app ya Lay Microfinance ni: $newPin"
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = LayNavyPrimary),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Tuma SMS", fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    CommunicationHelper.openWhatsApp(
+                                        context,
+                                        agent.phone,
+                                        "Habari ${agent.name}, Nambari yako mpya ya siri (PIN) ya kuingia kwenye app ya Lay Microfinance ni: $newPin"
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.ChatBubble, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("WhatsApp", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (!resetSuccess) {
+                    Button(
+                        onClick = {
+                            if (newPin.length < 4) {
+                                resetError = "PIN lazima iwe na angalau tarakimu 4."
+                                return@Button
+                            }
+                            isSavingPin = true
+                            coroutineScope.launch {
+                                val res = repository.resetAgentPin(agent.id, newPin)
+                                isSavingPin = false
+                                if (res.isSuccess) {
+                                    resetSuccess = true
+                                } else {
+                                    resetError = res.exceptionOrNull()?.localizedMessage ?: "Imeshindwa kusasisha PIN"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LayNavyPrimary),
+                        enabled = !isSavingPin
+                    ) {
+                        Text("Hifadhi PIN Mpya")
+                    }
+                } else {
+                    Button(
+                        onClick = { agentToResetPin = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = LayNavyPrimary)
+                    ) {
+                        Text("Nimemaliza")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!resetSuccess) {
+                    TextButton(onClick = { agentToResetPin = null }, enabled = !isSavingPin) {
+                        Text("Ghairi")
+                    }
                 }
             }
         )
@@ -388,11 +593,29 @@ fun AgentCard(
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = LayNavyLight
                     )
-                    QuickContactButtonsRow(
-                        phoneNumber = agent.phone,
-                        contactName = agent.name,
-                        defaultMessage = "Habari ${agent.name}, kutoka Lay Microfinance."
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val context = LocalContext.current
+                        Button(
+                            onClick = { CommunicationHelper.makePhoneCall(context, agent.phone) },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.testTag("call_agent_button_${agent.id}")
+                        ) {
+                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Piga", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        QuickContactButtonsRow(
+                            phoneNumber = agent.phone,
+                            contactName = agent.name,
+                            defaultMessage = "Habari ${agent.name}, kutoka Lay Microfinance."
+                        )
+                    }
                 }
             }
         }

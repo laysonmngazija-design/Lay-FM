@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.*
 import com.example.data.repository.MicrofinanceRepository
+import com.example.ui.components.CommunicationHelper
+import com.example.ui.components.CustomerHistoryDialog
 import com.example.ui.components.Formatters
 import com.example.ui.components.LoanStatusBadge
 import com.example.ui.components.QuickContactButtonsRow
@@ -54,8 +56,8 @@ fun AgentCustomersScreen(
     var selectedCustomer by remember { mutableStateOf<Customer?>(null) }
     var showPaymentSheetForLoan by remember { mutableStateOf<Loan?>(null) }
 
-    // Filter to this agent
-    val myCustomers = customers.filter { it.agentId == agent.id }
+    // Filter to this agent only (agent aone wateja wake tu)
+    val myCustomers = customers.filter { repository.isAgentCustomer(it, agent) }
     val filteredCustomers = myCustomers.filter {
         it.fullName.contains(searchQuery, ignoreCase = true) ||
         it.phone.contains(searchQuery, ignoreCase = true)
@@ -68,7 +70,7 @@ fun AgentCustomersScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Wateja Wangu (Customers)",
+                        text = "Wateja Wangu (${myCustomers.size})",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = LayNavyPrimary
@@ -115,26 +117,69 @@ fun AgentCustomersScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Customer List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
-            ) {
-                items(filteredCustomers) { cust ->
-                    val custLoans = loans.filter { it.customerId == cust.id }
-                    val activeLoan = custLoans.find { it.status == LoanStatus.ACTIVE || it.status == LoanStatus.OVERDUE || it.status == LoanStatus.PENDING || it.status == LoanStatus.APPROVED }
-
-                    CustomerCardItem(
-                        customer = cust,
-                        activeLoan = activeLoan,
-                        onClick = { selectedCustomer = cust },
-                        onLipaClick = {
-                            if (activeLoan != null && (activeLoan.status == LoanStatus.ACTIVE || activeLoan.status == LoanStatus.OVERDUE)) {
-                                showPaymentSheetForLoan = activeLoan
-                            }
+            // Customer List or Empty State
+            if (filteredCustomers.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PeopleOutline,
+                            contentDescription = null,
+                            tint = LayTextTertiary,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "Hakuna matokeo ya utafutaji" else "Hakuna Wateja Wako Bado",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = LayTextPrimary
+                        )
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "Hakuna mteja anayelingana na '$searchQuery'."
+                            else "Bofya kitufe cha chini kusajili mteja wako mpya kuanza kumhudumia.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LayTextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Button(
+                            onClick = { showAddCustomerDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sajili Mteja Mpya")
                         }
-                    )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    items(filteredCustomers) { cust ->
+                        val custLoans = loans.filter { it.customerId == cust.id }
+                        val activeLoan = custLoans.find { it.status == LoanStatus.ACTIVE || it.status == LoanStatus.OVERDUE || it.status == LoanStatus.PENDING || it.status == LoanStatus.APPROVED }
+
+                        CustomerCardItem(
+                            customer = cust,
+                            activeLoan = activeLoan,
+                            onClick = { selectedCustomer = cust },
+                            onLipaClick = {
+                                if (activeLoan != null && (activeLoan.status == LoanStatus.ACTIVE || activeLoan.status == LoanStatus.OVERDUE)) {
+                                    showPaymentSheetForLoan = activeLoan
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -149,9 +194,6 @@ fun AgentCustomersScreen(
         var guarantorPhone by remember { mutableStateOf("+255 ") }
         var loanAmountStr by remember { mutableStateOf("100000") }
         var loanPurpose by remember { mutableStateOf("Biashara") }
-        var recipientName by remember { mutableStateOf("") }
-        var recipientPhone by remember { mutableStateOf("+255 ") }
-        var recipientNetwork by remember { mutableStateOf("M-Pesa") }
 
         // Loan terms
         var interestMethod by remember { mutableStateOf(InterestMethod.PERCENTAGE) }
@@ -248,33 +290,7 @@ fun AgentCustomersScreen(
                     )
 
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("3. Mpokeaji wa Malipo (Payment Recipient)", fontWeight = FontWeight.Bold, color = LayNavyPrimary)
-                    Text("Taarifa za mtandao ambapo mteja anataka atumiwe fedha.", fontSize = 11.sp, color = LayTextSecondary)
-                    OutlinedTextField(
-                        value = recipientName,
-                        onValueChange = { recipientName = it },
-                        label = { Text("Jina la Mpokeaji (Kama lilivyo kwenye simu) *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = recipientPhone,
-                        onValueChange = { recipientPhone = it },
-                        label = { Text("Namba ya Kupokea Fedha *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                    )
-                    OutlinedTextField(
-                        value = recipientNetwork,
-                        onValueChange = { recipientNetwork = it },
-                        label = { Text("Mtandao (M-Pesa, Airtel, Tigo, Halopesa) *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("4. Vigezo vya Mkopo (Loan Terms)", fontWeight = FontWeight.Bold, color = LayNavyPrimary)
+                    Text("3. Vigezo vya Mkopo (Loan Terms)", fontWeight = FontWeight.Bold, color = LayNavyPrimary)
                     OutlinedTextField(
                         value = loanAmountStr,
                         onValueChange = { loanAmountStr = it },
@@ -326,7 +342,7 @@ fun AgentCustomersScreen(
                         OutlinedTextField(
                             value = durationDaysStr,
                             onValueChange = { durationDaysStr = it },
-                            label = { Text("Muda (Siku)") },
+                            label = { Text("Muda (Siku) *") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -334,11 +350,74 @@ fun AgentCustomersScreen(
                         OutlinedTextField(
                             value = installmentAmountStr,
                             onValueChange = { installmentAmountStr = it },
-                            label = { Text("Rejesho/Siku (TZS)") },
+                            label = { Text("Rejesho/Siku (TZS) *") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
+                    }
+
+                    // Hesabu ya Moja kwa Moja (Live Auto-Calculation: Mkopo + Riba ÷ Siku = Rejesho/Siku)
+                    val principalCalc = loanAmountStr.filter { it.isDigit() }.toLongOrNull() ?: 0L
+                    val rateOrFixedCalc = interestRateStr.filter { it.isDigit() || it == '.' }.toDoubleOrNull() ?: 0.0
+                    val daysCalc = durationDaysStr.filter { it.isDigit() }.toIntOrNull() ?: 24
+
+                    val calculatedInterest = if (interestMethod == InterestMethod.PERCENTAGE) {
+                        (principalCalc * rateOrFixedCalc / 100.0).toLong()
+                    } else {
+                        rateOrFixedCalc.toLong()
+                    }
+                    val calculatedTotal = principalCalc + calculatedInterest
+                    val calculatedInstallment = if (daysCalc > 0) (calculatedTotal + daysCalc - 1) / daysCalc else 0L
+
+                    LaunchedEffect(principalCalc, rateOrFixedCalc, interestMethod, daysCalc) {
+                        if (calculatedInstallment > 0) {
+                            installmentAmountStr = calculatedInstallment.toString()
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = LayGreenContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Calculate, contentDescription = null, tint = LayGreenDark, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Hesabu ya Moja kwa Moja (Auto-Calculation):", fontWeight = FontWeight.Bold, color = LayGreenOnContainer, fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("1. Kiasi cha Mkopo:", fontSize = 12.sp)
+                                Text(Formatters.formatTsh(principalCalc), fontWeight = FontWeight.SemiBold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (interestMethod == InterestMethod.PERCENTAGE) "2. Riba ($interestRateStr%):" else "2. Kiasi cha Riba:", fontSize = 12.sp)
+                                Text("+ ${Formatters.formatTsh(calculatedInterest)}", fontWeight = FontWeight.SemiBold, color = LayGreenDark)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("3. Jumla ya Mkataba (1 + 2):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(Formatters.formatTsh(calculatedTotal), fontWeight = FontWeight.ExtraBold, color = LayNavyDark)
+                            }
+                            Divider(modifier = Modifier.padding(vertical = 4.dp), color = LayGreenDark.copy(alpha = 0.2f))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("4. Rejesho kwa Siku ($daysCalc siku):", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LayNavyPrimary)
+                                    Text("Jumla (${Formatters.formatTsh(calculatedTotal)}) ÷ Siku $daysCalc", fontSize = 10.sp, color = LayTextSecondary)
+                                }
+                                Text(
+                                    "${Formatters.formatTsh(calculatedInstallment)} / siku",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = LayGreenDark
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -367,9 +446,9 @@ fun AgentCustomersScreen(
                             guarantorPhone = guarantorPhone.trim(),
                             requestedAmount = principal,
                             loanPurpose = loanPurpose.trim(),
-                            recipientName = recipientName.ifBlank { fullName }.trim(),
-                            recipientPhone = recipientPhone.ifBlank { phone }.trim(),
-                            recipientNetwork = recipientNetwork.trim(),
+                            recipientName = fullName.trim(),
+                            recipientPhone = phone.trim(),
+                            recipientNetwork = "Simu ya Mteja",
                             status = "Active"
                         )
 
@@ -401,133 +480,16 @@ fun AgentCustomersScreen(
         )
     }
 
-    // Customer Profile Dialog
+    // Full Customer Profile & History Dialog
     selectedCustomer?.let { cust ->
-        val custLoans = loans.filter { it.customerId == cust.id }
-        val activeLoan = custLoans.find { it.status == LoanStatus.ACTIVE || it.status == LoanStatus.OVERDUE }
-        val custPayments = payments.filter { it.customerId == cust.id }
-
-        AlertDialog(
-            onDismissRequest = { selectedCustomer = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    UserAvatar(name = cust.fullName, size = 46, backgroundColor = LayNavyPrimary)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(text = cust.fullName, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                        Text(text = cust.phone, style = MaterialTheme.typography.bodySmall, color = LayTextSecondary)
-                    }
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 440.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Simu: ${cust.phone}", fontWeight = FontWeight.SemiBold)
-                        QuickContactButtonsRow(
-                            phoneNumber = cust.phone,
-                            contactName = cust.fullName,
-                            defaultMessage = "Habari ${cust.fullName}, kutoka Lay Microfinance."
-                        )
-                    }
-                    Text("Makazi: ${cust.address}")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Mdhamini: ${cust.guarantorName}", fontWeight = FontWeight.Medium)
-                        QuickContactButtonsRow(
-                            phoneNumber = cust.guarantorPhone,
-                            contactName = cust.guarantorName,
-                            defaultMessage = "Habari ${cust.guarantorName}, kutoka Lay Microfinance."
-                        )
-                    }
-                    Text("Mpokeaji Malipo: ${cust.recipientName} (${cust.recipientNetwork}: ${cust.recipientPhone})")
-
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    if (activeLoan != null) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = LayGreenContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Mkopo Uliopo (${activeLoan.loanNumber})", fontWeight = FontWeight.Bold, color = LayGreenOnContainer)
-                                    LoanStatusBadge(status = activeLoan.status)
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Mkataba: ${Formatters.formatTsh(activeLoan.totalContractualAmount)}")
-                                Text("Salio Lililobaki: ${Formatters.formatTsh(activeLoan.remainingBalance)}", fontWeight = FontWeight.ExtraBold, color = LayNavyDark)
-                                Text("Rejesho la Leo: ${Formatters.formatTsh(activeLoan.installmentAmount)} (saa 12:00 jioni)")
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Button(
-                                    onClick = {
-                                        showPaymentSheetForLoan = activeLoan
-                                        selectedCustomer = null
-                                    },
-                                    modifier = Modifier.fillMaxWidth().testTag("profile_lipa_button"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = LayGreenDark)
-                                ) {
-                                    Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Lipa / Rekodi Malipo")
-                                }
-                            }
-                        }
-                    } else {
-                        Text("Mteja hana mkopo unaoendelea kwa sasa.", color = LayTextSecondary)
-                    }
-
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("Historia ya Marejesho (Payment History):", fontWeight = FontWeight.Bold)
-
-                    if (custPayments.isEmpty()) {
-                        Text("Hakuna rekodi za marejesho bado.", fontSize = 12.sp, color = LayTextTertiary)
-                    } else {
-                        custPayments.forEach { pay ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Text(pay.receiptNumber, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                        Text(Formatters.formatDateTime(pay.timestamp), fontSize = 11.sp, color = LayTextSecondary)
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(Formatters.formatTsh(pay.amount), fontWeight = FontWeight.Bold, color = LayGreenDark, fontSize = 13.sp)
-                                        Text("Salio: ${Formatters.formatTsh(pay.balanceAfter)}", fontSize = 11.sp, color = LayTextTertiary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedCustomer = null }) {
-                    Text("Funga")
-                }
+        CustomerHistoryDialog(
+            customer = cust,
+            loans = loans,
+            payments = payments,
+            onDismiss = { selectedCustomer = null },
+            onRecordPaymentClick = { loan ->
+                showPaymentSheetForLoan = loan
+                selectedCustomer = null
             }
         )
     }

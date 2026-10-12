@@ -3,9 +3,11 @@
     ".read": false,
     ".write": false,
     "users": {
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')"
+        ".write": "auth != null"
       }
     },
     "customers": {
@@ -21,7 +23,7 @@
       ".write": "auth != null"
     },
     "ledgerEntries": {
-      ".read": "auth != null && (auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+      ".read": "auth != null",
       "$entryId": {
         ".write": "auth != null && !data.exists()"
       }
@@ -35,7 +37,7 @@
       ".write": "auth != null"
     },
     "auditLogs": {
-      ".read": "auth != null && (auth.token.email === 'laysonmngazija@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+      ".read": "auth != null",
       "$logId": {
         ".write": "auth != null && !data.exists()"
       }

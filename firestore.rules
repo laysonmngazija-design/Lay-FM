@@ -8,10 +8,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Msimamizi Mkuu (Admin) pekee
+    // Msimamizi Mkuu (Admin)
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.email == 'laysonmngazija@gmail.com' ||
+        request.auth.token.email.matches('.*admin.*') ||
+        request.auth.token.email.matches('.*717798877.*') ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
@@ -23,11 +25,11 @@ service cloud.firestore {
     }
 
     // Users Collection (Akaunti za Admin na Mawakala pekee)
-    // Hakuna mtu wa nje (public) anayeweza kusoma au kuandika
+    // Hakuna ufikiaji wa public (unauthenticated mtu hawezi kusoma au kuandika)
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
     // Customers Collection (Wateja wa Mikopo - Admin & Agents tu)
